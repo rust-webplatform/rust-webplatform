@@ -1,0 +1,11 @@
+[package]
+
+name = "test"
+version = "0.0.1"
+
+[[bin]]
+
+name = "test"
+
+[dependencies.rustc-serialize]
+version = "0.3"
