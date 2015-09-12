@@ -1,8 +1,15 @@
-[Online Version](http://bl.ocks.org/AerialX/1041460cb9dd5876658c)
+# rust-webplatform
 
-Shamelessly stolen from [tomaka](https://gist.github.com/tomaka/24c058db5ae31dfafb3f).
-Doesn't really do anything interesting, but does illustrate how to build Cargo
-projects for the web.
+```rust
+let body = HtmlNode::query("body").unwrap();
+body.html_set("<h1>HELLO FROM RUST</h1> <button>CLICK ME</button>");
+let mut button = HtmlNode::query("button").unwrap();
+button.on("click", || alert("WITNESS ME"));
+```
+
+Soon!
+
+Shamelessly stolen from [tomaka](https://gist.github.com/tomaka/24c058db5ae31dfafb3f) and then [AerialX](https://github.com/AerialX).
 
 ## Building
 
