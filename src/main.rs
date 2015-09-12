@@ -1,6 +1,3 @@
-#![feature(unboxed_closures)]
-#![feature(libc)]
-
 extern crate libc;
 
 mod webplatform;
