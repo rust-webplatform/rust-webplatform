@@ -1,4 +1,12 @@
 [root]
 name = "webplatform"
 version = "0.0.1"
+dependencies = [
+ "libc 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "libc"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 

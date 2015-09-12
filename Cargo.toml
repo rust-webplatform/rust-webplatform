@@ -2,7 +2,13 @@
 
 name = "webplatform"
 version = "0.0.1"
+license = "MIT"
+description = "APIs for the web platform for cross-compiled Rust to JS."
+authors = ["Tim Cameron Ryan <tim@timryan.org>"]
 
 [[bin]]
 
 name = "webplatform"
+
+[dependencies]
+libc = "0.1.3"
