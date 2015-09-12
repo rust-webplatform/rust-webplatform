@@ -1,12 +1,4 @@
 [root]
-name = "test"
+name = "webplatform"
 version = "0.0.1"
-dependencies = [
- "rustc-serialize 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "rustc-serialize"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
 
