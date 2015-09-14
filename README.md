@@ -7,23 +7,15 @@ let mut button = HtmlNode::query("button").unwrap();
 button.on("click", || alert("WITNESS ME"));
 ```
 
-Soon!
+Thanks to the high heavens for [tomaka](https://gist.github.com/tomaka/24c058db5ae31dfafb3f) and then [AerialX](https://github.com/AerialX) for making this possible.
 
-Shamelessly stolen from [tomaka](https://gist.github.com/tomaka/24c058db5ae31dfafb3f) and then [AerialX](https://github.com/AerialX).
+## Building on Your Machine
 
-## Building
+First install [multirust](https://github.com/brson/multirust).
 
-See [cargo-build](https://github.com/AerialX/cargo-build) for instructions on
-how to get the environment set up. Then run `make`.
+Create a new folder. In that folder, save the `setup.sh` file, then run `source setup.sh`. It will download and install all the dependencies for the [cargo-build](https://github.com/AerialX/cargo-build) setup.
 
-Tips:
-
-* Install LLVM 3.5.
-* When installing emscripten, use `./emsdk install emscripten-1.30.0; ./emsdk activate emscripten-1.30.0; ./emsdk install clang-tag-e1.30.0-64bit; ./emsdk activate clang-tag-e1.30.0-64bit`
-* Install [multirust](https://github.com/brson/multirust).
-* Use [this branch of cargo-build](https://github.com/AerialX/cargo-build/pull/4) and cargo-build with `1.2.0`.
-* Build [rust-rt-minimal](https://github.com/AerialX/rust-rt-minimal) with `nightly-2015-03-12`.
-* Build this project with with `nightly-2015-03-12`.
+Then clone this repository, cd into it, and run `make`. Run `source setup.sh` in your root directory each time you want to set up the environment.
 
 ## License
 
