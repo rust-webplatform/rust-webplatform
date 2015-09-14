@@ -2,13 +2,9 @@
 
 if [ ! -d emsdk_portable ]; then
 	curl https://s3.amazonaws.com/mozilla-games/emscripten/releases/emsdk-portable.tar.gz | tar -xvzf - -C .
-	cd emsdk_portable
-	./emsdk install emscripten-1.30.0;
-	./emsdk install clang-tag-e1.30.0-64bit;
-	cd ..
 fi
 
-if [ ! -d llvm ]; then
+if [ ! -d llvm-3.5.2.src ]; then
 	curl http://llvm.org/releases/3.5.2/llvm-3.5.2.src.tar.xz | tar -xvjf - -C .
 	cd llvm-3.5.2.src
 	./configure --enable-shared --enable-keep-symbols
@@ -27,8 +23,10 @@ fi
 ROOT=$(pwd)
 
 cd emsdk_portable
-./emsdk activate emscripten-1.30.0;
-./emsdk activate clang-tag-e1.30.0-64bit
+# ./emsdk install emscripten-1.30.0;
+# ./emsdk activate emscripten-1.30.0;
+# ./emsdk install clang-tag-e1.30.0-64bit;
+# ./emsdk activate clang-tag-e1.30.0-64bit
 . ./emsdk_env.sh
 
 export LLVM_PREFIX=$ROOT/llvm-3.5.2.src/Release+Asserts

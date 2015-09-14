@@ -1,0 +1,12 @@
+[package]
+name = "concat_bytes"
+version = "0.1.0"
+authors = ["KokaKiwi <kokakiwi@kokakiwi.net>"]
+license = "MIT"
+description = "A concat_bytes! macro which concat byte arrays"
+homepage = "https://github.com/KokaKiwi/concat_bytes"
+repository = "https://github.com/KokaKiwi/concat_bytes"
+
+[lib]
+name = "concat_bytes"
+plugin = true

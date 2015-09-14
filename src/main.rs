@@ -1,10 +1,16 @@
+#![feature(plugin)]
+#![plugin(concat_bytes)]
+
 extern crate libc;
 
+#[macro_use]
 mod webplatform;
 
 use webplatform::{HtmlNode, alert};
 
 fn main() {
+	webplatform::init();
+
     let body = HtmlNode::query("body").unwrap();
 
     let hr = HtmlNode::create("hr").unwrap();
