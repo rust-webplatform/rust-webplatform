@@ -2,10 +2,11 @@
 
 use libc;
 use std::ffi::{CString, CStr};
-use std::mem;
+use std::{mem, fmt};
 use std::mem::forget;
 use std::str;
 use std::borrow::ToOwned;
+use std::marker::NoCopy;
 
 trait Interop {
     fn as_int(self, _:&mut Vec<CString>) -> libc::c_int;
@@ -57,8 +58,14 @@ pub struct HtmlNode {
     id: libc::c_int,
 }
 
-extern fn rust_caller<F: Fn()>(a: *const libc::c_void) {
-    let v:&F = unsafe { mem::transmute(a) };
+impl fmt::Debug for HtmlNode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "HtmlNode({:?})", self.id)
+    }
+}
+
+extern fn rust_caller<F: FnMut()>(a: *const libc::c_void) {
+    let v:&mut F = unsafe { mem::transmute(a) };
     v();
 }
 
@@ -99,21 +106,27 @@ impl HtmlNode {
         }
     }
 
-    pub fn html_set(&self, s: &str) {
+    pub fn html_set(&mut self, s: &str) {
         js! { (self.id, s) br#"
             WEBPLATFORM.rs_refs[$0].innerHTML = UTF8ToString($1);
         "#};
     }
     
-    pub fn prop_set_i32(&self, s: &str, v: i32) {
+    pub fn prop_set_i32(&mut self, s: &str, v: i32) {
         js! { (self.id, s, v) concat_bytes!(br#"
             WEBPLATFORM.rs_refs[$0][UTF8ToString($1)] = $2;
         "#)};
     }
     
-    pub fn prop_set_str(&self, s: &str, v: &str) {
+    pub fn prop_set_str(&mut self, s: &str, v: &str) {
         js! { (self.id, s, v) concat_bytes!(br#"
             WEBPLATFORM.rs_refs[$0][UTF8ToString($1)] = UTF8ToString($2);
+        "#)};
+    }
+    
+    pub fn prop_get_i32(&self, s: &str) -> i32 {
+        return js! { (self.id, s) concat_bytes!(br#"
+            return WEBPLATFORM.rs_refs[$0][UTF8ToString($1)]
         "#)};
     }
     
@@ -126,25 +139,25 @@ impl HtmlNode {
         }
     }
 
-    pub fn append(&self, s: &HtmlNode) {
+    pub fn append(&mut self, s: &HtmlNode) {
         js! { (self.id, s.id) br#"
             WEBPLATFORM.rs_refs[$0].appendChild(WEBPLATFORM.rs_refs[$1]);
         "#};
     }
 
-    pub fn html_append(&self, s: &str) {
+    pub fn html_append(&mut self, s: &str) {
         js! { (self.id, s) br#"
             WEBPLATFORM.rs_refs[$0].insertAdjacentHTML('beforeEnd', UTF8ToString($1));
         "#};
     }
 
-    pub fn html_prepend(&self, s: &str) {
+    pub fn html_prepend(&mut self, s: &str) {
         js! { (self.id, s) br#"
             WEBPLATFORM.rs_refs[$0].insertAdjacentHTML('afterBegin', UTF8ToString($1));
         "#};
     }
 
-    pub fn on<F: Fn()>(&mut self, s: &str, f: F) {
+    pub fn on<F: FnMut()>(&mut self, s: &str, f: F) {
         unsafe {
             let a = &f as *const _;
             forget(f);
@@ -157,13 +170,15 @@ impl HtmlNode {
     }
 }
 
-impl Drop for HtmlNode {
-    fn drop(&mut self) {
-        js! { (self.id) br#"
-            delete WEBPLATFORM.rs_refs[$0];
-        "#};
-    }
-}
+// impl Drop for HtmlNode {
+//     fn drop(&mut self) {
+//         println!("dropping, {:?}", self.id);
+//         js! { (self.id) br#"
+//             console.log(WEBPLATFORM.rs_refs[$0]);
+//             delete WEBPLATFORM.rs_refs[$0];
+//         "#};
+//     }
+// }
 
 pub fn alert(s: &str) {
     js! { (s) br#"
