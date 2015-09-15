@@ -22,4 +22,5 @@ fn main() {
     button.on("click", || alert("WITNESS ME"));
 
     body.prop_set_str("bgColor", "blue");
+    println!("This should be blue: {:?}", body.prop_get_str("bgColor"));
 }

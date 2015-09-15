@@ -1,16 +1,18 @@
 #![allow(dead_code)]
 
 use libc;
-use std::ffi::CString;
+use std::ffi::{CString, CStr};
 use std::mem;
 use std::mem::forget;
+use std::str;
+use std::borrow::ToOwned;
 
 trait Interop {
-    fn as_int(self, arena:&mut Vec<CString>) -> libc::c_int;
+    fn as_int(self, _:&mut Vec<CString>) -> libc::c_int;
 }
 
 impl Interop for i32 {
-    fn as_int(self, arena:&mut Vec<CString>) -> libc::c_int {
+    fn as_int(self, _:&mut Vec<CString>) -> libc::c_int {
         return self;
     }
 }
@@ -25,7 +27,7 @@ impl<'a> Interop for &'a str {
 }
 
 impl<'a> Interop for *const libc::c_void {
-    fn as_int(self, arena:&mut Vec<CString>) -> libc::c_int {
+    fn as_int(self, _:&mut Vec<CString>) -> libc::c_int {
         return self as libc::c_int;
     }
 }
@@ -110,19 +112,19 @@ impl HtmlNode {
     }
     
     pub fn prop_set_str(&self, s: &str, v: &str) {
-        println!("s {:?}", s);
-        println!("v {:?}", v);
         js! { (self.id, s, v) concat_bytes!(br#"
-            console.log($1, $2);
             WEBPLATFORM.rs_refs[$0][UTF8ToString($1)] = UTF8ToString($2);
         "#)};
     }
     
-    // pub fn prop_get_str(&self, s: &str) -> String {
-    //     let a = js! { (self.id, s) concat_bytes!(br#"
-    //         return WEBPLATFORM.rs_refs[$0][UTF8ToString($1)]
-    //     "#)};
-    // }
+    pub fn prop_get_str(&self, s: &str) -> String {
+        let a = js! { (self.id, s) concat_bytes!(br#"
+            return allocate(intArrayFromString(WEBPLATFORM.rs_refs[$0][UTF8ToString($1)]), 'i8', ALLOC_STACK);
+        "#)};
+        unsafe {
+            str::from_utf8(CStr::from_ptr(a as *const libc::c_char).to_bytes()).unwrap().to_owned()
+        }
+    }
 
     pub fn append(&self, s: &HtmlNode) {
         js! { (self.id, s.id) br#"
