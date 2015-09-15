@@ -20,4 +20,6 @@ fn main() {
     body.html_append("<button>CLICK ME</button>");
     let mut button = HtmlNode::query("button").unwrap();
     button.on("click", || alert("WITNESS ME"));
+
+    body.prop_set_str("bgColor", "blue");
 }

@@ -6,23 +6,26 @@ use std::mem;
 use std::mem::forget;
 
 trait Interop {
-    fn as_int(self) -> libc::c_int;
+    fn as_int(self, arena:&mut Vec<CString>) -> libc::c_int;
 }
 
 impl Interop for i32 {
-    fn as_int(self) -> libc::c_int {
+    fn as_int(self, arena:&mut Vec<CString>) -> libc::c_int {
         return self;
     }
 }
 
 impl<'a> Interop for &'a str {
-    fn as_int(self) -> libc::c_int {
-        return CString::new(self).unwrap().as_ptr() as libc::c_int;
+    fn as_int(self, arena:&mut Vec<CString>) -> libc::c_int {
+        let c = CString::new(self).unwrap();
+        let ret = c.as_ptr() as libc::c_int;
+        arena.push(c);
+        return ret;
     }
 }
 
 impl<'a> Interop for *const libc::c_void {
-    fn as_int(self) -> libc::c_int {
+    fn as_int(self, arena:&mut Vec<CString>) -> libc::c_int {
         return self as libc::c_int;
     }
 }
@@ -31,7 +34,8 @@ macro_rules! js {
     ( ($( $x:expr ),*) $y:expr ) => {
         unsafe {
             use webplatform;
-            webplatform::emscripten_asm_const_int(concat_bytes!($y, b"\0").as_ptr() as *const libc::c_char, $(Interop::as_int($x)),*)
+            let mut arena:Vec<CString> = Vec::new();
+            webplatform::emscripten_asm_const_int(concat_bytes!($y, b"\0").as_ptr() as *const libc::c_char, $(Interop::as_int($x, &mut arena)),*)
         }
     };
     ( $y:expr ) => {
@@ -98,6 +102,27 @@ impl HtmlNode {
             WEBPLATFORM.rs_refs[$0].innerHTML = UTF8ToString($1);
         "#};
     }
+    
+    pub fn prop_set_i32(&self, s: &str, v: i32) {
+        js! { (self.id, s, v) concat_bytes!(br#"
+            WEBPLATFORM.rs_refs[$0][UTF8ToString($1)] = $2;
+        "#)};
+    }
+    
+    pub fn prop_set_str(&self, s: &str, v: &str) {
+        println!("s {:?}", s);
+        println!("v {:?}", v);
+        js! { (self.id, s, v) concat_bytes!(br#"
+            console.log($1, $2);
+            WEBPLATFORM.rs_refs[$0][UTF8ToString($1)] = UTF8ToString($2);
+        "#)};
+    }
+    
+    // pub fn prop_get_str(&self, s: &str) -> String {
+    //     let a = js! { (self.id, s) concat_bytes!(br#"
+    //         return WEBPLATFORM.rs_refs[$0][UTF8ToString($1)]
+    //     "#)};
+    // }
 
     pub fn append(&self, s: &HtmlNode) {
         js! { (self.id, s.id) br#"
