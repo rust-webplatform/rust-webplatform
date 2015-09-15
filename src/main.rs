@@ -1,5 +1,5 @@
 #![feature(plugin)]
-#![feature(core)]
+#![feature(alloc)]
 #![plugin(concat_bytes)]
 
 extern crate libc;
@@ -7,24 +7,33 @@ extern crate libc;
 #[macro_use]
 mod webplatform;
 
-use webplatform::{HtmlNode, alert};
+use webplatform::{HtmlNode, alert, spin};
 
 fn main() {
-	webplatform::init();
+	let mut wp = webplatform::init();
 
-    let mut body = HtmlNode::query("body").unwrap();
+    let mut body = wp.query("body").unwrap();
 
-    let hr = HtmlNode::create("hr").unwrap();
+    let hr = wp.create("hr").unwrap();
     body.append(&hr);
 
     body.html_prepend("<h1>HELLO FROM RUST</h1>");
     body.html_append("<button>CLICK ME</button>");
-    let mut button = HtmlNode::query("button").unwrap();
+    let mut button = wp.query("button").unwrap();
     
-    button.on("click", || {
-    	body.prop_set_str("bgColor", "blue");
-    });
+    // button.on("click", || {
+    // 	body.prop_set_str("bgColor", "blue");
+    // });
+
+	let mut b2 = body.clone();
+	wp.refs.push(Box::new(move || {
+    	b2.prop_set_str("bgColor", "blue");
+    }));
 
     println!("This should be blue: {:?}", body.prop_get_str("bgColor"));
-    println!("Height?: {:?}", body.prop_get_i32("clientWidth"));
+    println!("Width?: {:?}", body.prop_get_i32("clientWidth"));
+
+    spin();
+
+    println!("NO CALLING ME.");
 }
