@@ -3,10 +3,10 @@
 use libc;
 use std::ffi::{CString, CStr};
 use std::{mem, fmt};
-use std::mem::forget;
 use std::str;
 use std::borrow::ToOwned;
 use std::ops::Deref;
+use std::cell::RefCell;
 
 trait Interop {
     fn as_int(self, _:&mut Vec<CString>) -> libc::c_int;
@@ -58,7 +58,7 @@ extern {
 
 pub struct HtmlNode<'a> {
     id: libc::c_int,
-    refs: Vec<Box<FnMut() + 'a>>,
+    refs: RefCell<Vec<Box<FnMut() + 'a>>>,
 }
 
 impl<'a> fmt::Debug for HtmlNode<'a> {
@@ -74,11 +74,14 @@ impl<'a> Drop for HtmlNode<'a> {
     }
 }
 
-use std::marker::ContravariantLifetime;
-
 pub struct JSRef<'a> {
     ptr: *const HtmlNode<'a>,
-    chain: ContravariantLifetime<'a>,
+}
+
+impl<'a> fmt::Debug for JSRef<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "JSRef(HtmlNode({:?}))", self.id)
+    }
 }
 
 use std::clone::Clone;
@@ -87,18 +90,14 @@ impl<'a> Clone for JSRef<'a> {
     fn clone(&self) -> JSRef<'a> {
         JSRef {
             ptr: self.ptr,
-            chain: ContravariantLifetime,
         }
     }
 }
 
 impl<'a> HtmlNode<'a> {
-    pub fn root_ref<'b>(&'b self) -> JSRef<'b> {
-        unsafe {
-            JSRef {
-                ptr: &*self,
-                chain: ContravariantLifetime,
-            }
+    pub fn root_ref<'b>(&'b self) -> JSRef<'a> {
+        JSRef {
+            ptr: &*self,
         }
     }
 }
@@ -171,15 +170,16 @@ impl<'a> HtmlNode<'a> {
         "#};
     }
 
-    pub fn on<F: FnMut() + 'a>(&mut self, s: &str, f: F) {
+    pub fn on<F: FnMut() + 'a>(&self, s: &str, f: F) {
         unsafe {
-            let a = &f as *const _;
+            let b = Box::new(f);
+            let a = &*b as *const _;
             js! { (self.id, s, a as *const libc::c_void, rust_caller::<F> as *const libc::c_void) br#"
                 WEBPLATFORM.rs_refs[$0].addEventListener(UTF8ToString($1), function () {
                     Runtime.dynCall('vi', $3, [$2]);
                 }, false);
             "#};
-            self.refs.push(Box::new(f));
+            self.refs.borrow_mut().push(b);
         }
     }
 }
@@ -209,7 +209,7 @@ impl Document {
         } else {
             Some(HtmlNode {
                 id: id,
-                refs: Vec::new(),
+                refs: RefCell::new(Vec::new()),
             })
         }
     }
@@ -228,7 +228,7 @@ impl Document {
         } else {
             Some(HtmlNode {
                 id: id,
-                refs: Vec::new(),
+                refs: RefCell::new(Vec::new()),
             })
         }
     }
