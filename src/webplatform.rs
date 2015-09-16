@@ -6,8 +6,7 @@ use std::{mem, fmt};
 use std::mem::forget;
 use std::str;
 use std::borrow::ToOwned;
-use std::cell::RefCell;
-use std::rc::{Rc, is_unique};
+use std::ops::Deref;
 
 trait Interop {
     fn as_int(self, _:&mut Vec<CString>) -> libc::c_int;
@@ -57,21 +56,60 @@ extern {
     pub fn emscripten_set_main_loop(m: extern fn(), fps: libc::c_int, infinite: libc::c_int);
 }
 
-#[derive(Clone)]
-pub struct HtmlNode {
+pub struct HtmlNode<'a> {
     id: libc::c_int,
-    rc: Rc<()>,
+    refs: Vec<Box<FnMut() + 'a>>,
 }
 
-impl fmt::Debug for HtmlNode {
+impl<'a> fmt::Debug for HtmlNode<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "HtmlNode({:?})", self.id)
     }
 }
 
-impl Drop for HtmlNode {
+#[unsafe_destructor]
+impl<'a> Drop for HtmlNode<'a> {
     fn drop(&mut self) {
-        println!("dropping HTML NODE {:?} {:?}", self.id, is_unique(&self.rc));
+        println!("dropping HTML NODE {:?}", self.id);
+    }
+}
+
+use std::marker::ContravariantLifetime;
+
+pub struct JSRef<'a> {
+    ptr: *const HtmlNode<'a>,
+    chain: ContravariantLifetime<'a>,
+}
+
+use std::clone::Clone;
+
+impl<'a> Clone for JSRef<'a> {
+    fn clone(&self) -> JSRef<'a> {
+        JSRef {
+            ptr: self.ptr,
+            chain: ContravariantLifetime,
+        }
+    }
+}
+
+impl<'a> HtmlNode<'a> {
+    pub fn root_ref<'b>(&'b self) -> JSRef<'b> {
+        unsafe {
+            JSRef {
+                ptr: &*self,
+                chain: ContravariantLifetime,
+            }
+        }
+    }
+}
+
+impl<'a> Deref for JSRef<'a> {
+    type Target = HtmlNode<'a>;
+
+    fn deref(&self) -> &HtmlNode<'a> {
+        unsafe {
+            &*self.ptr
+        }
     }
 }
 
@@ -80,20 +118,20 @@ extern fn rust_caller<F: FnMut()>(a: *const libc::c_void) {
     v();
 }
 
-impl HtmlNode {
-    pub fn html_set(&mut self, s: &str) {
+impl<'a> HtmlNode<'a> {
+    pub fn html_set(&self, s: &str) {
         js! { (self.id, s) br#"
             WEBPLATFORM.rs_refs[$0].innerHTML = UTF8ToString($1);
         "#};
     }
     
-    pub fn prop_set_i32(&mut self, s: &str, v: i32) {
+    pub fn prop_set_i32(&self, s: &str, v: i32) {
         js! { (self.id, s, v) br#"
             WEBPLATFORM.rs_refs[$0][UTF8ToString($1)] = $2;
         "#};
     }
     
-    pub fn prop_set_str(&mut self, s: &str, v: &str) {
+    pub fn prop_set_str(&self, s: &str, v: &str) {
         js! { (self.id, s, v) br#"
             console.log($0)
             WEBPLATFORM.rs_refs[$0][UTF8ToString($1)] = UTF8ToString($2);
@@ -115,36 +153,35 @@ impl HtmlNode {
         }
     }
 
-    pub fn append(&mut self, s: &HtmlNode) {
+    pub fn append(&self, s: &HtmlNode) {
         js! { (self.id, s.id) br#"
             WEBPLATFORM.rs_refs[$0].appendChild(WEBPLATFORM.rs_refs[$1]);
         "#};
     }
 
-    pub fn html_append(&mut self, s: &str) {
+    pub fn html_append(&self, s: &str) {
         js! { (self.id, s) br#"
             WEBPLATFORM.rs_refs[$0].insertAdjacentHTML('beforeEnd', UTF8ToString($1));
         "#};
     }
 
-    pub fn html_prepend(&mut self, s: &str) {
+    pub fn html_prepend(&self, s: &str) {
         js! { (self.id, s) br#"
             WEBPLATFORM.rs_refs[$0].insertAdjacentHTML('afterBegin', UTF8ToString($1));
         "#};
     }
 
-    // pub fn on<'a, F: FnMut() + Clone>(&'a mut self, s: &str, f: F) {
-    //     unsafe {
-    //         let a = &f as *const _;
-    //         // forget(f);
-    //         js! { (self.id, s, a as *const libc::c_void, rust_caller::<F> as *const libc::c_void) br#"
-    //             WEBPLATFORM.rs_refs[$0].addEventListener(UTF8ToString($1), function () {
-    //                 Runtime.dynCall('vi', $3, [$2]);
-    //             }, false);
-    //         "#};
-    //         self.wp.borrow_mut().refs.push(Box::new(f.clone()));
-    //     }
-    // }
+    pub fn on<F: FnMut() + 'a>(&mut self, s: &str, f: F) {
+        unsafe {
+            let a = &f as *const _;
+            js! { (self.id, s, a as *const libc::c_void, rust_caller::<F> as *const libc::c_void) br#"
+                WEBPLATFORM.rs_refs[$0].addEventListener(UTF8ToString($1), function () {
+                    Runtime.dynCall('vi', $3, [$2]);
+                }, false);
+            "#};
+            self.refs.push(Box::new(f));
+        }
+    }
 }
 
 pub fn alert(s: &str) {
@@ -153,12 +190,12 @@ pub fn alert(s: &str) {
     "#};
 }
 
-pub struct WebPlatform {
+pub struct Document {
     pub refs: Vec<Box<FnMut()>>,
 }
 
-impl WebPlatform {
-    pub fn create(&self, s: &str) -> Option<HtmlNode> {
+impl Document {
+    pub fn element_create(&self, s: &str) -> Option<HtmlNode> {
         let id = js! { (s) br#"
             var value = document.createElement(UTF8ToString($0));
             if (!value) {
@@ -172,12 +209,12 @@ impl WebPlatform {
         } else {
             Some(HtmlNode {
                 id: id,
-                rc: Rc::new(()),
+                refs: Vec::new(),
             })
         }
     }
 
-    pub fn query(&self, s: &str) -> Option<HtmlNode> {
+    pub fn element_query(&self, s: &str) -> Option<HtmlNode> {
         let id = js! { (s) br#"
             var value = document.querySelector(UTF8ToString($0));
             if (!value) {
@@ -191,19 +228,19 @@ impl WebPlatform {
         } else {
             Some(HtmlNode {
                 id: id,
-                rc: Rc::new(()),
+                refs: Vec::new(),
             })
         }
     }
 }
 
-pub fn init() -> WebPlatform {
+pub fn init() -> Document {
     js! { br#"
         this.WEBPLATFORM = {
             rs_refs: [],
         };
     "#};
-    WebPlatform {
+    Document {
         refs: Vec::new()
     }
 }

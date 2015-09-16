@@ -1,5 +1,6 @@
 #![feature(plugin)]
 #![feature(alloc)]
+#![feature(unsafe_destructor)]
 #![plugin(concat_bytes)]
 
 extern crate libc;
@@ -10,30 +11,29 @@ mod webplatform;
 use webplatform::{HtmlNode, alert, spin};
 
 fn main() {
-	let mut wp = webplatform::init();
+    let mut document = webplatform::init();
+    {
+        let mut body = document.element_query("body").unwrap();
 
-    let mut body = wp.query("body").unwrap();
+        let hr = document.element_create("hr").unwrap();
+        body.append(&hr);
 
-    let hr = wp.create("hr").unwrap();
-    body.append(&hr);
+        body.html_prepend("<h1>HELLO FROM RUST</h1>");
+        body.html_append("<button>CLICK ME</button>");
 
-    body.html_prepend("<h1>HELLO FROM RUST</h1>");
-    body.html_append("<button>CLICK ME</button>");
-    let mut button = wp.query("button").unwrap();
+        let mut button = document.element_query("button").unwrap();
+
+        let bodyref = body.root_ref();
+        let bodyref2 = body.root_ref();
+    	button.on("click", move || {
+            bodyref2.prop_set_str("bgColor", "blue");
+        });
+        
+        println!("This should be blue: {:?}", bodyref.prop_get_str("bgColor"));
+        println!("Width?: {:?}", bodyref.prop_get_i32("clientWidth"));
     
-    // button.on("click", || {
-    // 	body.prop_set_str("bgColor", "blue");
-    // });
-
-	let mut b2 = body.clone();
-	wp.refs.push(Box::new(move || {
-    	b2.prop_set_str("bgColor", "blue");
-    }));
-
-    println!("This should be blue: {:?}", body.prop_get_str("bgColor"));
-    println!("Width?: {:?}", body.prop_get_i32("clientWidth"));
-
-    spin();
+        spin();
+    }
 
     println!("NO CALLING ME.");
 }
