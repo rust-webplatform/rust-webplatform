@@ -10,6 +10,9 @@ authors = ["Tim Cameron Ryan <tim@timryan.org>"]
 
 name = "webplatform"
 
+[lib]
+name = "webplatform"
+
 [dependencies]
 libc = "0.1.3"
 
