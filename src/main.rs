@@ -2,10 +2,7 @@
 #![feature(unsafe_destructor)]
 #![plugin(concat_bytes)]
 
-extern crate libc;
-
-#[macro_use]
-mod webplatform;
+#[macro_use] extern crate webplatform;
 
 use std::borrow::ToOwned;
 

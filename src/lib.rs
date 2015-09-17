@@ -1,12 +1,20 @@
-#![allow(dead_code)]
+#![feature(plugin)]
+#![feature(unsafe_destructor)]
+#![plugin(concat_bytes)]
 
-use libc;
+extern crate libc;
+
 use std::ffi::{CString, CStr};
 use std::{mem, fmt};
 use std::str;
 use std::borrow::ToOwned;
 use std::ops::Deref;
 use std::cell::RefCell;
+
+mod webplatform {
+    pub use emscripten_asm_const;
+    pub use emscripten_asm_const_int;
+}
 
 trait Interop {
     fn as_int(self, _:&mut Vec<CString>) -> libc::c_int;
@@ -36,15 +44,13 @@ impl<'a> Interop for *const libc::c_void {
 macro_rules! js {
     ( ($( $x:expr ),*) $y:expr ) => {
         unsafe {
-            use webplatform;
             let mut arena:Vec<CString> = Vec::new();
-            webplatform::emscripten_asm_const_int(concat_bytes!($y, b"\0").as_ptr() as *const libc::c_char, $(Interop::as_int($x, &mut arena)),*)
+            ::webplatform::emscripten_asm_const_int(concat_bytes!($y, b"\0").as_ptr() as *const libc::c_char, $(Interop::as_int($x, &mut arena)),*)
         }
     };
     ( $y:expr ) => {
         unsafe {
-            use webplatform;
-            webplatform::emscripten_asm_const_int(concat_bytes!($y, b"\0").as_ptr() as *const libc::c_char)
+            ::webplatform::emscripten_asm_const_int(concat_bytes!($y, b"\0").as_ptr() as *const libc::c_char)
         }
     };
 }
