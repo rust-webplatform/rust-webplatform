@@ -270,3 +270,11 @@ pub fn spin() {
         
     }
 }
+
+#[no_mangle]
+pub extern "C" fn syscall(a: i32) -> i32 {
+    if a == 355 {
+        return 55
+    }
+    return -1
+}
