@@ -1,6 +1,6 @@
 [package]
-name = "concat_bytes"
-version = "0.1.0"
+name = "webplatform_concat_bytes"
+version = "0.0.1"
 authors = ["KokaKiwi <kokakiwi@kokakiwi.net>"]
 license = "MIT"
 description = "A concat_bytes! macro which concat byte arrays"
