@@ -10,6 +10,8 @@ use std::str;
 use std::borrow::ToOwned;
 use std::ops::Deref;
 use std::cell::RefCell;
+use std::clone::Clone;
+use std::rc::Rc;
 
 mod webplatform {
     pub use emscripten_asm_const;
@@ -43,14 +45,14 @@ impl<'a> Interop for *const libc::c_void {
 
 macro_rules! js {
     ( ($( $x:expr ),*) $y:expr ) => {
-        unsafe {
+        {
             let mut arena:Vec<CString> = Vec::new();
-            ::webplatform::emscripten_asm_const_int(concat_bytes!($y, b"\0").as_ptr() as *const libc::c_char, $(Interop::as_int($x, &mut arena)),*)
+            unsafe { ::webplatform::emscripten_asm_const_int(concat_bytes!($y, b"\0").as_ptr() as *const libc::c_char, $(Interop::as_int($x, &mut arena)),*) }
         }
     };
     ( $y:expr ) => {
-        unsafe {
-            ::webplatform::emscripten_asm_const_int(concat_bytes!($y, b"\0").as_ptr() as *const libc::c_char)
+        {
+            unsafe { ::webplatform::emscripten_asm_const_int(concat_bytes!($y, b"\0").as_ptr() as *const libc::c_char) }
         }
     };
 }
@@ -64,7 +66,7 @@ extern {
 
 pub struct HtmlNode<'a> {
     id: libc::c_int,
-    refs: RefCell<Vec<Box<FnMut() + 'a>>>,
+    doc: *const Document<'a>,
 }
 
 impl<'a> fmt::Debug for HtmlNode<'a> {
@@ -89,8 +91,6 @@ impl<'a> fmt::Debug for JSRef<'a> {
         write!(f, "JSRef(HtmlNode({:?}))", self.id)
     }
 }
-
-use std::clone::Clone;
 
 impl<'a> Clone for JSRef<'a> {
     fn clone(&self) -> JSRef<'a> {
@@ -185,8 +185,15 @@ impl<'a> HtmlNode<'a> {
                     Runtime.dynCall('vi', $3, [$2]);
                 }, false);
             "#};
-            self.refs.borrow_mut().push(b);
+            (&*self.doc).refs.borrow_mut().push(b);
         }
+    }
+
+    pub fn remove_self(&self) {
+        js! { (self.id) br#"
+            var s = WEBPLATFORM.rs_refs[$0];
+            s.parentNode.removeChild(s);
+        "#};
     }
 }
 
@@ -196,12 +203,12 @@ pub fn alert(s: &str) {
     "#};
 }
 
-pub struct Document {
-    pub refs: Vec<Box<FnMut()>>,
+pub struct Document<'a> {
+    refs: Rc<RefCell<Vec<Box<FnMut() + 'a>>>>,
 }
 
-impl Document {
-    pub fn element_create(&self, s: &str) -> Option<HtmlNode> {
+impl<'a> Document<'a> {
+    pub fn element_create<'b>(&'b self, s: &str) -> Option<HtmlNode<'a>> {
         let id = js! { (s) br#"
             var value = document.createElement(UTF8ToString($0));
             if (!value) {
@@ -215,12 +222,12 @@ impl Document {
         } else {
             Some(HtmlNode {
                 id: id,
-                refs: RefCell::new(Vec::new()),
+                doc: &*self,
             })
         }
     }
 
-    pub fn element_query(&self, s: &str) -> Option<HtmlNode> {
+    pub fn element_query<'b>(&'b self, s: &str) -> Option<HtmlNode<'a>> {
         let id = js! { (s) br#"
             var value = document.querySelector(UTF8ToString($0));
             if (!value) {
@@ -234,20 +241,20 @@ impl Document {
         } else {
             Some(HtmlNode {
                 id: id,
-                refs: RefCell::new(Vec::new()),
+                doc: self,
             })
         }
     }
 }
 
-pub fn init() -> Document {
+pub fn init<'a>() -> Document<'a> {
     js! { br#"
-        this.WEBPLATFORM = {
+        this.WEBPLATFORM || (this.WEBPLATFORM = {
             rs_refs: [],
-        };
+        });
     "#};
     Document {
-        refs: Vec::new()
+        refs: Rc::new(RefCell::new(Vec::new())),
     }
 }
 
