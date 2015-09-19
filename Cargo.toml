@@ -1,7 +1,7 @@
 [package]
 
 name = "webplatform"
-version = "0.1.2"
+version = "0.1.3"
 license = "MIT"
 description = "APIs for the web platform for cross-compiled Rust to JS."
 authors = ["Tim Cameron Ryan <tim@timryan.org>"]
@@ -18,5 +18,5 @@ path = "src/lib.rs"
 libc = "0.1.3"
 
 [dependencies.concat_bytes]
-path = "concat_bytes"
-version = "0.1.0"
+path = "./concat_bytes"
+
