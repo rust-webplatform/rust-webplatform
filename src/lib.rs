@@ -12,6 +12,8 @@ use std::ops::Deref;
 use std::cell::RefCell;
 use std::clone::Clone;
 use std::rc::Rc;
+use std::collections::HashSet;
+use std::char;
 
 mod webplatform {
     pub use emscripten_asm_const;
@@ -118,9 +120,23 @@ impl<'a> Deref for JSRef<'a> {
     }
 }
 
-extern fn rust_caller<F: FnMut()>(a: *const libc::c_void) {
+pub struct Event<'a> {
+    pub target: Option<HtmlNode<'a>>
+}
+
+extern fn rust_caller<F: FnMut(Event)>(a: *const libc::c_void, docptr: *const libc::c_void, id: i32) {
     let v:&mut F = unsafe { mem::transmute(a) };
-    v();
+    v(Event {
+        target: if id == -1 {
+            None
+        } else {
+            Some(HtmlNode {
+                id: id,
+                doc: unsafe { mem::transmute(docptr) },
+            })
+        }
+        // target: None,
+    });
 }
 
 impl<'a> HtmlNode<'a> {
@@ -128,6 +144,79 @@ impl<'a> HtmlNode<'a> {
         js! { (self.id, s) br#"
             WEBPLATFORM.rs_refs[$0].innerHTML = UTF8ToString($1);
         "#};
+    }
+
+    pub fn html_get(&self) -> String {
+        let a = js! { (self.id) br#"
+            return allocate(intArrayFromString(WEBPLATFORM.rs_refs[$0].innerHTML), 'i8', ALLOC_STACK);
+        "#};
+        unsafe {
+            str::from_utf8(CStr::from_ptr(a as *const libc::c_char).to_bytes()).unwrap().to_owned()
+        }
+    }
+
+    pub fn class_get(&self) -> HashSet<String> {
+        let a = js! { (self.id) br#"
+            return allocate(intArrayFromString(WEBPLATFORM.rs_refs[$0].className), 'i8', ALLOC_STACK);
+        "#};
+        let class = unsafe {
+            str::from_utf8(CStr::from_ptr(a as *const libc::c_char).to_bytes()).unwrap().to_owned()
+        };
+        class.trim().split(char::is_whitespace).map(|x| x.to_string()).collect()
+    }
+
+    pub fn parent(&self) -> Option<HtmlNode<'a>> {
+        let id = js! { (self.id) br#"
+            var value = WEBPLATFORM.rs_refs[$0].parentNode;
+            if (!value) {
+                return -1;
+            }
+            return WEBPLATFORM.rs_refs.push(value) - 1;
+        "#};
+        if id < 0 {
+            None
+        } else {
+            Some(HtmlNode {
+                id: id,
+                doc: self.doc,
+            })
+        }
+    }
+    
+    pub fn data_set(&self, s: &str, v: &str) {
+        js! { (self.id, s, v) br#"
+            WEBPLATFORM.rs_refs[$0].dataset[UTF8ToString($1)] = UTF8ToString($2);
+        "#};
+    }
+
+    pub fn data_get(&self, s: &str) -> Option<String> {
+        let a = js! { (self.id, s) br#"
+            var str = WEBPLATFORM.rs_refs[$0].dataset[UTF8ToString($1)]
+            if (str == null) return -1;
+            return allocate(intArrayFromString(str), 'i8', ALLOC_STACK);
+        "#};
+        if a == -1 {
+            None
+        } else {
+            Some(unsafe {
+                str::from_utf8(CStr::from_ptr(a as *const libc::c_char).to_bytes()).unwrap().to_owned()
+            })
+        }
+    }
+    
+    pub fn style_set_str(&self, s: &str, v: &str) {
+        js! { (self.id, s, v) br#"
+            WEBPLATFORM.rs_refs[$0].style[UTF8ToString($1)] = UTF8ToString($2);
+        "#};
+    }
+
+    pub fn style_get_str(&self, s: &str) -> String {
+        let a = js! { (self.id, s) br#"
+            return allocate(intArrayFromString(WEBPLATFORM.rs_refs[$0].style[UTF8ToString($1)]), 'i8', ALLOC_STACK);
+        "#};
+        unsafe {
+            str::from_utf8(CStr::from_ptr(a as *const libc::c_char).to_bytes()).unwrap().to_owned()
+        }
     }
     
     pub fn prop_set_i32(&self, s: &str, v: i32) {
@@ -138,7 +227,6 @@ impl<'a> HtmlNode<'a> {
     
     pub fn prop_set_str(&self, s: &str, v: &str) {
         js! { (self.id, s, v) br#"
-            console.log($0)
             WEBPLATFORM.rs_refs[$0][UTF8ToString($1)] = UTF8ToString($2);
         "#};
     }
@@ -176,13 +264,16 @@ impl<'a> HtmlNode<'a> {
         "#};
     }
 
-    pub fn on<F: FnMut() + 'a>(&self, s: &str, f: F) {
+    pub fn on<F: FnMut(Event) + 'a>(&self, s: &str, f: F) {
         unsafe {
             let b = Box::new(f);
             let a = &*b as *const _;
-            js! { (self.id, s, a as *const libc::c_void, rust_caller::<F> as *const libc::c_void) br#"
-                WEBPLATFORM.rs_refs[$0].addEventListener(UTF8ToString($1), function () {
-                    Runtime.dynCall('vi', $3, [$2]);
+            js! { (self.id, s, a as *const libc::c_void,
+                rust_caller::<F> as *const libc::c_void,
+                self.doc as *const libc::c_void)
+                br#"
+                WEBPLATFORM.rs_refs[$0].addEventListener(UTF8ToString($1), function (e) {
+                    Runtime.dynCall('viii', $3, [$2, $4, e.target ? WEBPLATFORM.rs_refs.push(e.target) - 1 : -1]);
                 }, false);
             "#};
             (&*self.doc).refs.borrow_mut().push(b);
@@ -204,7 +295,7 @@ pub fn alert(s: &str) {
 }
 
 pub struct Document<'a> {
-    refs: Rc<RefCell<Vec<Box<FnMut() + 'a>>>>,
+    refs: Rc<RefCell<Vec<Box<FnMut(Event<'a>) + 'a>>>>,
 }
 
 impl<'a> Document<'a> {
