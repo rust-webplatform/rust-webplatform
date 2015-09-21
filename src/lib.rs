@@ -14,6 +14,7 @@ use std::clone::Clone;
 use std::rc::Rc;
 use std::collections::HashSet;
 use std::char;
+use std::iter::IntoIterator;
 
 mod webplatform {
     pub use emscripten_asm_const;
@@ -140,6 +141,22 @@ extern fn rust_caller<F: FnMut(Event)>(a: *const libc::c_void, docptr: *const li
 }
 
 impl<'a> HtmlNode<'a> {
+    pub fn tagname(&self) -> String {
+        let a = js! { (self.id) br#"
+            var str = WEBPLATFORM.rs_refs[$0].tagName.toLowerCase();
+            return allocate(intArrayFromString(str), 'i8', ALLOC_STACK);
+        "#};
+        unsafe {
+            str::from_utf8(CStr::from_ptr(a as *const libc::c_char).to_bytes()).unwrap().to_owned()
+        }
+    }
+
+    pub fn focus(&self) {
+        js! { (self.id) br#"
+            WEBPLATFORM.rs_refs[$0].focus();
+        "#};
+    }
+
     pub fn html_set(&self, s: &str) {
         js! { (self.id, s) br#"
             WEBPLATFORM.rs_refs[$0].innerHTML = UTF8ToString($1);
@@ -163,6 +180,18 @@ impl<'a> HtmlNode<'a> {
             str::from_utf8(CStr::from_ptr(a as *const libc::c_char).to_bytes()).unwrap().to_owned()
         };
         class.trim().split(char::is_whitespace).map(|x| x.to_string()).collect()
+    }
+
+    pub fn class_add(&self, s: &str) {
+        js! { (self.id, s) br#"
+            WEBPLATFORM.rs_refs[$0].classList.add(UTF8ToString($1));
+        "#};
+    }
+
+    pub fn class_remove(&self, s: &str) {
+        js! { (self.id, s) br#"
+            WEBPLATFORM.rs_refs[$0].classList.remove(UTF8ToString($1));
+        "#};
     }
 
     pub fn parent(&self) -> Option<HtmlNode<'a>> {
@@ -232,15 +261,15 @@ impl<'a> HtmlNode<'a> {
     }
     
     pub fn prop_get_i32(&self, s: &str) -> i32 {
-        return js! { (self.id, s) concat_bytes!(br#"
-            return WEBPLATFORM.rs_refs[$0][UTF8ToString($1)]
-        "#)};
+        return js! { (self.id, s) br#"
+            return Number(WEBPLATFORM.rs_refs[$0][UTF8ToString($1)])
+        "#};
     }
     
     pub fn prop_get_str(&self, s: &str) -> String {
-        let a = js! { (self.id, s) concat_bytes!(br#"
+        let a = js! { (self.id, s) br#"
             return allocate(intArrayFromString(WEBPLATFORM.rs_refs[$0][UTF8ToString($1)]), 'i8', ALLOC_STACK);
-        "#)};
+        "#};
         unsafe {
             str::from_utf8(CStr::from_ptr(a as *const libc::c_char).to_bytes()).unwrap().to_owned()
         }
@@ -275,6 +304,22 @@ impl<'a> HtmlNode<'a> {
                 WEBPLATFORM.rs_refs[$0].addEventListener(UTF8ToString($1), function (e) {
                     Runtime.dynCall('viii', $3, [$2, $4, e.target ? WEBPLATFORM.rs_refs.push(e.target) - 1 : -1]);
                 }, false);
+            "#};
+            (&*self.doc).refs.borrow_mut().push(b);
+        }
+    }
+
+    pub fn captured_on<F: FnMut(Event) + 'a>(&self, s: &str, f: F) {
+        unsafe {
+            let b = Box::new(f);
+            let a = &*b as *const _;
+            js! { (self.id, s, a as *const libc::c_void,
+                rust_caller::<F> as *const libc::c_void,
+                self.doc as *const libc::c_void)
+                br#"
+                WEBPLATFORM.rs_refs[$0].addEventListener(UTF8ToString($1), function (e) {
+                    Runtime.dynCall('viii', $3, [$2, $4, e.target ? WEBPLATFORM.rs_refs.push(e.target) - 1 : -1]);
+                }, true);
             "#};
             (&*self.doc).refs.borrow_mut().push(b);
         }
@@ -318,6 +363,31 @@ impl<'a> Document<'a> {
         }
     }
 
+    pub fn location_hash_get(&self) -> String {
+        let a = js! { concat_bytes!(br#"
+            return allocate(intArrayFromString(window.location.hash), 'i8', ALLOC_STACK);
+        "#)};
+        unsafe {
+            str::from_utf8(CStr::from_ptr(a as *const libc::c_char).to_bytes()).unwrap().to_owned()
+        }
+    }
+
+    pub fn on<F: FnMut(Event) + 'a>(&self, s: &str, f: F) {
+        unsafe {
+            let b = Box::new(f);
+            let a = &*b as *const _;
+            js! { (0, s, a as *const libc::c_void,
+                rust_caller::<F> as *const libc::c_void,
+                &*self as *const _ as *const libc::c_void)
+                br#"
+                window.addEventListener(UTF8ToString($1), function (e) {
+                    Runtime.dynCall('viii', $3, [$2, $4, e.target ? WEBPLATFORM.rs_refs.push(e.target) - 1 : -1]);
+                }, false);
+            "#};
+            self.refs.borrow_mut().push(b);
+        }
+    }
+
     pub fn element_query<'b>(&'b self, s: &str) -> Option<HtmlNode<'a>> {
         let id = js! { (s) br#"
             var value = document.querySelector(UTF8ToString($0));
@@ -337,6 +407,88 @@ impl<'a> Document<'a> {
         }
     }
 }
+
+pub struct LocalStorageInterface;
+
+pub struct LocalStorageIterator {
+    index: i32,
+}
+
+impl LocalStorageInterface {
+    pub fn len(&self) -> i32 {
+        js! { br#"
+            return window.localStorage.length;
+        "#}
+    }
+
+    pub fn clear(&self) {
+        js! { br#"
+            window.localStorage.clear();
+        "#};
+    }
+
+    pub fn remove(&self, s: &str) {
+        js! { (s) br#"
+            window.localStorage.removeItem(UTF8ToString($0));
+        "#};
+    }
+
+    pub fn set(&self, s: &str, v: &str) {
+        js! { (s, v) br#"
+            window.localStorage.setItem(UTF8ToString($0), UTF8ToString($1));
+        "#};
+    }
+
+    pub fn get(&self, name: &str) -> Option<String> {
+        let a = js! { (name) br#"
+            var str = window.localStorage.getItem(UTF8ToString($0));
+            if (str == null) {
+                return -1;
+            }
+            return allocate(intArrayFromString(str), 'i8', ALLOC_STACK);
+        "# };
+        if a == -1 {
+            None
+        } else {
+            Some(unsafe {
+                str::from_utf8(CStr::from_ptr(a as *const libc::c_char).to_bytes()).unwrap().to_owned()
+            })
+        }
+    }
+
+    pub fn key(&self, index: i32) -> String {
+        let a = js! { (index) br#"
+            var key = window.localStorage.key($0);
+            return allocate(intArrayFromString(str), 'i8', ALLOC_STACK);
+        "# };
+        unsafe {
+            str::from_utf8(CStr::from_ptr(a as *const libc::c_char).to_bytes()).unwrap().to_owned()
+        }
+    }
+}
+
+impl IntoIterator for LocalStorageInterface {
+    type Item = String;
+    type IntoIter = LocalStorageIterator;
+
+    fn into_iter(self) -> LocalStorageIterator {
+        LocalStorageIterator { index: 0 }
+    }
+}
+
+impl Iterator for LocalStorageIterator {
+    type Item = String;
+    fn next(&mut self) -> Option<String> {
+        if self.index >= LocalStorage.len() {
+            None
+        } else {
+            LocalStorage.get(&LocalStorage.key(self.index))
+        }
+    }
+}
+
+#[allow(non_upper_case_globals)]
+pub const LocalStorage: LocalStorageInterface = LocalStorageInterface;
 
 pub fn init<'a>() -> Document<'a> {
     js! { br#"

@@ -1,7 +1,7 @@
 [package]
 
 name = "webplatform"
-version = "0.2.0"
+version = "0.3.0"
 license = "MIT"
 description = "APIs for the web platform for cross-compiled Rust to JS."
 authors = ["Tim Cameron Ryan <tim@timryan.org>"]
