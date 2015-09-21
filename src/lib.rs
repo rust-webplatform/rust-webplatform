@@ -104,7 +104,7 @@ impl<'a> Clone for JSRef<'a> {
 }
 
 impl<'a> HtmlNode<'a> {
-    pub fn root_ref<'b>(&'b self) -> JSRef<'a> {
+    pub fn root_ref(&self) -> JSRef<'a> {
         JSRef {
             ptr: &*self,
         }
