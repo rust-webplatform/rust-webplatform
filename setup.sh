@@ -2,8 +2,10 @@
 
 if [ ! -d emsdk_portable ]; then
 	curl https://s3.amazonaws.com/mozilla-games/emscripten/releases/emsdk-portable.tar.gz | tar -xvzf - -C .
+	cd emsdk_portable
 	./emsdk install emscripten-1.30.0;
 	./emsdk install clang-tag-e1.30.0-64bit;
+	cd ..
 fi
 
 if [ ! -d llvm-3.5.2.src ]; then
