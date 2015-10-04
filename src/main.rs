@@ -3,6 +3,7 @@
 #![plugin(concat_bytes)]
 
 #[macro_use] extern crate webplatform;
+extern crate libc;
 
 use std::borrow::ToOwned;
 
@@ -24,10 +25,10 @@ fn main() {
         button.on("click", move |_| {
             bodyref2.prop_set_str("bgColor", "blue");
         });
-        
+
         println!("This should be blue: {:?}", bodyref.prop_get_str("bgColor"));
         println!("Width?: {:?}", bodyref.prop_get_i32("clientWidth"));
-    
+
         webplatform::spin();
     }
 
