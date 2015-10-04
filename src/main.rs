@@ -21,7 +21,7 @@ fn main() {
 
         let bodyref = body.root_ref();
         let bodyref2 = body.root_ref();
-    	button.on("click", move || {
+        button.on("click", move |_| {
             bodyref2.prop_set_str("bgColor", "blue");
         });
         
