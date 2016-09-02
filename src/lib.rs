@@ -46,6 +46,7 @@ impl<'a> Interop for *const libc::c_void {
     }
 }
 
+#[macro_export]
 macro_rules! js {
     ( ($( $x:expr ),*) $y:expr ) => {
         {
@@ -211,7 +212,7 @@ impl<'a> HtmlNode<'a> {
             })
         }
     }
-    
+
     pub fn data_set(&self, s: &str, v: &str) {
         js! { (self.id, s, v) br#"
             WEBPLATFORM.rs_refs[$0].dataset[UTF8ToString($1)] = UTF8ToString($2);
@@ -232,7 +233,7 @@ impl<'a> HtmlNode<'a> {
             })
         }
     }
-    
+
     pub fn style_set_str(&self, s: &str, v: &str) {
         js! { (self.id, s, v) br#"
             WEBPLATFORM.rs_refs[$0].style[UTF8ToString($1)] = UTF8ToString($2);
@@ -247,25 +248,25 @@ impl<'a> HtmlNode<'a> {
             str::from_utf8(CStr::from_ptr(a as *const libc::c_char).to_bytes()).unwrap().to_owned()
         }
     }
-    
+
     pub fn prop_set_i32(&self, s: &str, v: i32) {
         js! { (self.id, s, v) br#"
             WEBPLATFORM.rs_refs[$0][UTF8ToString($1)] = $2;
         "#};
     }
-    
+
     pub fn prop_set_str(&self, s: &str, v: &str) {
         js! { (self.id, s, v) br#"
             WEBPLATFORM.rs_refs[$0][UTF8ToString($1)] = UTF8ToString($2);
         "#};
     }
-    
+
     pub fn prop_get_i32(&self, s: &str) -> i32 {
         return js! { (self.id, s) br#"
             return Number(WEBPLATFORM.rs_refs[$0][UTF8ToString($1)])
         "#};
     }
-    
+
     pub fn prop_get_str(&self, s: &str) -> String {
         let a = js! { (self.id, s) br#"
             return allocate(intArrayFromString(WEBPLATFORM.rs_refs[$0][UTF8ToString($1)]), 'i8', ALLOC_STACK);
@@ -510,7 +511,7 @@ extern fn leavemebe() {
 pub fn spin() {
     unsafe {
         emscripten_set_main_loop(leavemebe, 0, 1);
-        
+
     }
 }
 
