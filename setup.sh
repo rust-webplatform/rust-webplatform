@@ -9,7 +9,7 @@ if [ ! -d emsdk_portable ]; then
 fi
 
 if [ ! -d llvm-3.5.2.src ]; then
-	curl http://llvm.org/releases/3.5.2/llvm-3.5.2.src.tar.xz | tar -xvjf - -C .
+	curl http://llvm.org/releases/3.5.2/llvm-3.5.2.src.tar.xz | tar -xvJf - -C .
 	cd llvm-3.5.2.src
 	./configure --enable-shared --enable-keep-symbols
 	make -j64
