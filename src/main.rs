@@ -1,7 +1,3 @@
-#![feature(plugin)]
-#![feature(unsafe_destructor)]
-#![plugin(concat_bytes)]
-
 #[macro_use] extern crate webplatform;
 extern crate libc;
 
@@ -24,9 +20,10 @@ fn main() {
         let bodyref2 = body.root_ref();
         button.on("click", move |_| {
             bodyref2.prop_set_str("bgColor", "blue");
+            println!("This should be string 'blue': {:?}", bodyref2.prop_get_str("bgColor"));
         });
 
-        println!("This should be blue: {:?}", bodyref.prop_get_str("bgColor"));
+        println!("This should be empty string: {:?}", bodyref.prop_get_str("bgColor"));
         println!("Width?: {:?}", bodyref.prop_get_i32("clientWidth"));
 
         webplatform::spin();

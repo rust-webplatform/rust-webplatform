@@ -1,3 +1,0 @@
-#!/bin/bash
-
-exec emcc --js-library ./src/library_rust.js -O0 $@
