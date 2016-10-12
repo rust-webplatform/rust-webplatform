@@ -48,13 +48,13 @@ macro_rules! js {
         {
             let mut arena:Vec<CString> = Vec::new();
             const LOCAL: &'static [u8] = $y;
-            unsafe { ::webplatform::emscripten_asm_const_int(&LOCAL[0] as *const libc::c_char, $(Interop::as_int($x, &mut arena)),*) }
+            unsafe { ::webplatform::emscripten_asm_const_int(&LOCAL[0] as *const _ as *const libc::c_char, $(Interop::as_int($x, &mut arena)),*) }
         }
     };
     ( $y:expr ) => {
         {
             const LOCAL: &'static [u8] = $y;
-            unsafe { ::webplatform::emscripten_asm_const_int(&LOCAL[0] as *const libc::c_char) }
+            unsafe { ::webplatform::emscripten_asm_const_int(&LOCAL[0] as *const _ as *const libc::c_char) }
         }
     };
 }
