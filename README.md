@@ -2,7 +2,7 @@
 
 A Rust library for use with emscripten to access the DOM.
 
-[Read the documentation](http://docs.rs/webplatform), read [brson's post on how
+[Read the documentation](https://docs.rs/crate/webplatform), read [brson's post on how
 Rust works with emscripten](https://users.rust-lang.org/t/compiling-to-the-web-with-rust-and-emscripten/7627),
 or see an example app with [rust-todomvc](http://github.com/tcr/rust-todomvc).
 
