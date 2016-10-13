@@ -1,3 +1,5 @@
+#![allow(unused_unsafe)]
+
 extern crate libc;
 
 use std::ffi::{CString, CStr};

@@ -1,8 +1,6 @@
 #[macro_use] extern crate webplatform;
 extern crate libc;
 
-use std::borrow::ToOwned;
-
 fn main() {
     let document = webplatform::init();
     {
@@ -14,7 +12,7 @@ fn main() {
         body.html_prepend("<h1>HELLO FROM RUST</h1>");
         body.html_append("<button>CLICK ME</button>");
 
-        let mut button = document.element_query("button").unwrap();
+        let button = document.element_query("button").unwrap();
 
         let bodyref = body.root_ref();
         let bodyref2 = body.root_ref();
