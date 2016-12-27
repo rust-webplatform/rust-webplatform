@@ -251,25 +251,25 @@ impl<'a> HtmlNode<'a> {
 
     pub fn prop_set_i32(&self, s: &str, v: i32) {
         js! { (self.id, s, v) b"\
-            WEBPLATFORM.rs_refs[$0][UTF8ToString($1)] = $2;\
+            WEBPLATFORM.rs_refs[$0].setAttribute(UTF8ToString($1), $2);\
         \0" };
     }
 
     pub fn prop_set_str(&self, s: &str, v: &str) {
         js! { (self.id, s, v) b"\
-            WEBPLATFORM.rs_refs[$0][UTF8ToString($1)] = UTF8ToString($2);\
+            WEBPLATFORM.rs_refs[$0].setAttribute(UTF8ToString($1), UTF8ToString($2));\
         \0" };
     }
 
     pub fn prop_get_i32(&self, s: &str) -> i32 {
         return js! { (self.id, s) b"\
-            return Number(WEBPLATFORM.rs_refs[$0][UTF8ToString($1)])\
+            return Number(WEBPLATFORM.rs_refs[$0].getAttribute(UTF8ToString($1)))\
         \0" };
     }
 
     pub fn prop_get_str(&self, s: &str) -> String {
         let a = js! { (self.id, s) b"\
-            var a = allocate(intArrayFromString(WEBPLATFORM.rs_refs[$0][UTF8ToString($1)]), 'i8', ALLOC_STACK); console.log(WEBPLATFORM.rs_refs[$0]); return a;\
+            var a = allocate(intArrayFromString(WEBPLATFORM.rs_refs[$0].getAttribute(UTF8ToString($1))), 'i8', ALLOC_STACK); console.log(WEBPLATFORM.rs_refs[$0]); return a;\
         \0" };
         unsafe {
             str::from_utf8(CStr::from_ptr(a as *const libc::c_char).to_bytes()).unwrap().to_owned()
