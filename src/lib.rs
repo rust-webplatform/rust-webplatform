@@ -422,7 +422,7 @@ impl<'a> Document<'a> {
             Array.prototype.push.apply(WEBPLATFORM.rs_refs, elements);\
             return elements.length;\
         \0" };
-        (start..count).map(|id| HtmlNode{ id: id, doc: self }).collect()
+        (start..(start+count)).map(|id| HtmlNode{ id: id, doc: self }).collect()
     }
 }
 
