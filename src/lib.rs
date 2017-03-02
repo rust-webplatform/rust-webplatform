@@ -14,49 +14,55 @@ use std::collections::HashSet;
 use std::char;
 use std::iter::IntoIterator;
 
-mod webplatform {
-    pub use emscripten_asm_const;
-    pub use emscripten_asm_const_int;
-}
-
-trait Interop {
-    fn as_int(self, _:&mut Vec<CString>) -> libc::c_int;
+pub trait Interop {
+    fn as_int(self, _:&mut Vec<CString>) -> c_int;
 }
 
 impl Interop for i32 {
-    fn as_int(self, _:&mut Vec<CString>) -> libc::c_int {
+    fn as_int(self, _:&mut Vec<CString>) -> c_int {
         return self;
     }
 }
 
 impl<'a> Interop for &'a str {
-    fn as_int(self, arena:&mut Vec<CString>) -> libc::c_int {
+    fn as_int(self, arena:&mut Vec<CString>) -> c_int {
         let c = CString::new(self).unwrap();
-        let ret = c.as_ptr() as libc::c_int;
+        let ret = c.as_ptr() as c_int;
         arena.push(c);
         return ret;
     }
 }
 
-impl<'a> Interop for *const libc::c_void {
-    fn as_int(self, _:&mut Vec<CString>) -> libc::c_int {
-        return self as libc::c_int;
+impl<'a> Interop for *const c_void {
+    fn as_int(self, _:&mut Vec<CString>) -> c_int {
+        return self as c_int;
     }
 }
 
+// Re-export types for use in `js!`` macro
+pub use libc::{c_int, c_char, c_void};
 #[macro_export]
 macro_rules! js {
     ( ($( $x:expr ),*) $y:expr ) => {
         {
-            let mut arena:Vec<CString> = Vec::new();
+            let mut arena: Vec<::std::ffi::CString> = Vec::new();
             const LOCAL: &'static [u8] = $y;
-            unsafe { ::webplatform::emscripten_asm_const_int(&LOCAL[0] as *const _ as *const libc::c_char, $(Interop::as_int($x, &mut arena)),*) }
+            unsafe {
+                $crate::emscripten_asm_const_int(
+                    &LOCAL[0] as *const _ as *const $crate::c_char,
+                    $($crate::Interop::as_int($x, &mut arena)),*
+                )
+            }
         }
     };
     ( $y:expr ) => {
         {
             const LOCAL: &'static [u8] = $y;
-            unsafe { ::webplatform::emscripten_asm_const_int(&LOCAL[0] as *const _ as *const libc::c_char) }
+            unsafe {
+                $crate::emscripten_asm_const_int(
+                    &LOCAL[0] as *const _ as *const $crate::c_char
+                )
+            }
         }
     };
 }
