@@ -2,7 +2,7 @@
 
 name = "webplatform"
 version = "0.1.0"
-license = "MIT"
+license = "MIT/Apache-2.0"
 description = "APIs for the web platform for cross-compiled Rust to JS."
 authors = ["Tim Cameron Ryan <tim@timryan.org>"]
 
