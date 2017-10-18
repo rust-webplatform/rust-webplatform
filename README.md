@@ -2,7 +2,7 @@
 
 A Rust library for use with emscripten to access the DOM.
 
-**NOTE: Looking for maintainers. Please ping me on Twitter @trimryan or in the issues section to volunteer!**
+**NOTE: This project is no longer actively developed. See [stdweb](https://github.com/koute/stdweb) for an actively-developed project for using Rust in asmjs / wasm.**
 
 [Read the documentation](https://docs.rs/crate/webplatform), read [brson's post on how
 Rust works with emscripten](https://users.rust-lang.org/t/compiling-to-the-web-with-rust-and-emscripten/7627),
