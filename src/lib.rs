@@ -407,6 +407,23 @@ impl<'a> Document<'a> {
             })
         }
     }
+
+    pub fn element_query_all<'b>(&'b self, s: &str) -> Vec<HtmlNode<'a>> {
+        let start: i32 = 0;
+        let start_ptr: *const i32 = &start;
+        let start_vptr = start_ptr as *const libc::c_void;
+        let count = js! { (s, start_vptr) b"\
+            var elements = document.querySelectorAll(UTF8ToString($0));\
+            if (elements.length == 0) {\
+                return 0;\
+            }\
+            var prev_len = WEBPLATFORM.rs_refs.length;\
+            setValue($1, prev_len, 'i32');\
+            Array.prototype.push.apply(WEBPLATFORM.rs_refs, elements);\
+            return elements.length;\
+        \0" };
+        (start..(start+count)).map(|id| HtmlNode{ id: id, doc: self }).collect()
+    }
 }
 
 pub struct LocalStorageInterface;
