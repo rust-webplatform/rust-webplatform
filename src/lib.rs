@@ -123,12 +123,22 @@ impl<'a> Deref for JSRef<'a> {
 }
 
 pub struct Event<'a> {
-    pub target: Option<HtmlNode<'a>>
+    pub target: Option<HtmlNode<'a>>,
+    pub event: i32,
 }
 
-extern fn rust_caller<F: FnMut(Event)>(a: *const libc::c_void, docptr: *const libc::c_void, id: i32) {
+impl<'a> Event<'a> {
+    pub fn prevent_default(&self) {
+        js! { (self.event) b"\
+            WEBPLATFORM.rs_refs[$0].preventDefault();\
+        \0" };
+    }
+}
+
+extern fn rust_caller<F: FnMut(Event)>(a: *const libc::c_void, docptr: *const libc::c_void, id: i32, event: i32) {
     let v:&mut F = unsafe { mem::transmute(a) };
     v(Event {
+        event: event,
         target: if id == -1 {
             None
         } else {
@@ -303,7 +313,7 @@ impl<'a> HtmlNode<'a> {
                 self.doc as *const libc::c_void)
                 b"\
                 WEBPLATFORM.rs_refs[$0].addEventListener(UTF8ToString($1), function (e) {\
-                    Runtime.dynCall('viii', $3, [$2, $4, e.target ? WEBPLATFORM.rs_refs.push(e.target) - 1 : -1]);\
+                    Runtime.dynCall('viiii', $3, [$2, $4, e.target ? WEBPLATFORM.rs_refs.push(e.target) - 1 : -1, WEBPLATFORM.rs_refs.push(e) - 1]);\
                 }, false);\
             \0" };
             (&*self.doc).refs.borrow_mut().push(b);
